@@ -93,17 +93,6 @@ class Trc20 extends Component {
         [event.target.name]: event.target.value,
       });
     }
-    /*if (parseFloat(event.target.value) < 0 || parseFloat(event.target.value) >= 0 || event.target.value == "") {
-      if (event.target.value.indexOf(".") !== -1) {
-        if (event.target.value.split(".")[1].length > 5) {
-          return false;
-        }
-      }
-
-      this.setState({
-        [event.target.name]: event.target.value,
-      });
-    }*/
   }
 
   updateToken = (tokenID) => {
