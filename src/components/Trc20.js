@@ -87,7 +87,13 @@ class Trc20 extends Component {
   }
 
   handleInputChange = (event) => {
-    if (parseFloat(event.target.value) < 0 || parseFloat(event.target.value) >= 0 || event.target.value == "") {
+    //console.log(/^[0-9]+(\.[0-9]{0,5})?$/.test(event.target.value))
+    if (/^[0-9]+(\.[0-9]{0,5})?$/.test(event.target.value) || event.target.value == "") {
+      this.setState({
+        [event.target.name]: event.target.value,
+      });
+    }
+    /*if (parseFloat(event.target.value) < 0 || parseFloat(event.target.value) >= 0 || event.target.value == "") {
       if (event.target.value.indexOf(".") !== -1) {
         if (event.target.value.split(".")[1].length > 5) {
           return false;
@@ -97,7 +103,7 @@ class Trc20 extends Component {
       this.setState({
         [event.target.name]: event.target.value,
       });
-    }
+    }*/
   }
 
   updateToken = (tokenID) => {
@@ -329,7 +335,7 @@ class Trc20 extends Component {
 
   handleOrderBookClick = (tradeType, price, quantity) => {
     let convertedTradeType = tradeType == "buy" ? "sell" : "buy";
-    this.setState({[convertedTradeType + "TokenPrice"]: price, [convertedTradeType + "TokenAmount"]: convertedTradeType == "buy" ? parseFloat(quantity) * parseFloat(price) > this.state.trxAmount ? this.state.trxAmount : quantity : parseFloat(quantity) > this.state.tokenAmount ? this.state.tokenAmount : quantity});
+    this.setState({ [convertedTradeType + "TokenPrice"]: price, [convertedTradeType + "TokenAmount"]: convertedTradeType == "buy" ? parseFloat(quantity) * parseFloat(price) > this.state.trxAmount ? this.state.trxAmount : quantity : parseFloat(quantity) > this.state.tokenAmount ? this.state.tokenAmount : quantity });
   }
 
   render() {
