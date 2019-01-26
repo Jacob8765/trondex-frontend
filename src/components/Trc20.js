@@ -37,7 +37,9 @@ class Trc20 extends Component {
       sellTokenAmount: "",
       sellTokenPrice: "0.0012",
       orderTab: 0,
-      testTokenAddress: "TTjtjLikeG8uceJF7dUT4ecv3jjQyKy3ga"
+      testTokenAddress: "TTjtjLikeG8uceJF7dUT4ecv3jjQyKy3ga",
+      tokenBalance: 0,
+      trxBalance: 0
     }
 
     this.tradeData = [{ result: { tradeType: "buy", price: 0.0000 * 10 ** 5, filled: 0 } }]
@@ -126,6 +128,7 @@ class Trc20 extends Component {
       });
 
       let completedTrades = await window.tronWeb.getEventResult(this.state.contractAddress, 0, "CompleteTrade", null, 20, 1); //collect 20 last completed trades
+      //console.log(completedTrades);
 
       if (completedTrades.length > 0) {
         this.tradeData = completedTrades;
@@ -175,7 +178,7 @@ class Trc20 extends Component {
     }
 
     this.sellOrders = tempSellOrders;
-    
+
     const tempTradesFromAddress = [];
     const tempCompletedTradesFromAddress = [];
     fetch(`http://localhost:8000/api/tradesFromAddress/${window.tronWeb.defaultAddress.base58}`)
@@ -186,7 +189,7 @@ class Trc20 extends Component {
         data.map(async (item) => {
           //console.log(item);
           try {
-            let result = await this.contractInstance[item.tradeType + "Orders"](item.tokenAddress, parseInt((item.price * 10**5).toFixed(0)), item.id).call();
+            let result = await this.contractInstance[item.tradeType + "Orders"](item.tokenAddress, parseInt((item.price * 10 ** 5).toFixed(0)), item.id).call();
             item.quantity = window.tronWeb.toDecimal(result.quantity._hex);
             item.filled = window.tronWeb.toDecimal(result.filled._hex);
 
@@ -201,10 +204,15 @@ class Trc20 extends Component {
         });
       }).catch(err => console.log(err));
 
-      this.tradesFromAddress = tempTradesFromAddress;
-      this.completedTradesFromAddress = tempCompletedTradesFromAddress;
-      console.log("Completed trades from address", this.completedTradesFromAddress);
-      //this.forceUpdate();
+    this.tradesFromAddress = tempTradesFromAddress;
+    this.completedTradesFromAddress = tempCompletedTradesFromAddress;
+    //console.log("Completed trades from address", this.completedTradesFromAddress);
+
+    let tokenBalance = await this.tokenInstance.balanceOf(window.tronWeb.defaultAddress.base58).call();
+    let trxBalance = await window.tronWeb.trx.getBalance(window.tronWeb.defaultAddress.base58);
+
+    this.setState({ tokenBalance: window.tronWeb.toDecimal(tokenBalance._hex), trxBalance: parseInt(window.tronWeb.fromSun(trxBalance)) });
+    //this.forceUpdate();
   }
 
   cancelOrder = async (type, id) => {
@@ -212,7 +220,7 @@ class Trc20 extends Component {
     console.log(order, type == "buy" ? "Buy" : "Sell");
 
     try {
-      let response = await this.contractInstance[`cancel${type == "buy" ? "Buy" : "Sell"}Order`](order.id, order.tokenAddress, parseInt((order.price * 10**5).toFixed(0))).send({ shouldPollResponse: true });
+      let response = await this.contractInstance[`cancel${type == "buy" ? "Buy" : "Sell"}Order`](order.id, order.tokenAddress, parseInt((order.price * 10 ** 5).toFixed(0))).send({ shouldPollResponse: true });
       console.log(response);
     } catch (err) {
       console.log(err);
@@ -319,10 +327,15 @@ class Trc20 extends Component {
     }
   }
 
+  handleOrderBookClick = (tradeType, price, quantity) => {
+    let convertedTradeType = tradeType == "buy" ? "sell" : "buy";
+    this.setState({[convertedTradeType + "TokenPrice"]: price, [convertedTradeType + "TokenAmount"]: convertedTradeType == "buy" ? parseFloat(quantity) * parseFloat(price) > this.state.trxAmount ? this.state.trxAmount : quantity : parseFloat(quantity) > this.state.tokenAmount ? this.state.tokenAmount : quantity});
+  }
+
   render() {
     return (
       <React.Fragment>
-        <Grid container spacing={24} className="mt-3 p-5" >
+        <Grid container spacing={24} className="p-5" >
           <Grid item lg={3} xs={12}>
             <Grid container direction="column">
               <Grid item xs={12} className="mb-4">
@@ -360,7 +373,7 @@ class Trc20 extends Component {
                       <p className="mb-0">Quantity (BK)</p>
                     </div>
                     <div style={{ width: 100 }} className="text-right">
-                      <p className="mb-0">Total (TRX)</p>
+                      <p className="mb-0">Time</p>
                     </div>
                   </div>
 
@@ -368,7 +381,7 @@ class Trc20 extends Component {
                   <div style={{ height: 180, overflowY: "scroll" }}>
                     {
                       this.tradeData.map((trade, index) => (
-                        <TradeItem key={index} price={parseFloat(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={parseFloat(trade.result.filled).toFixed(2).toString()} total={parseFloat(trade.result.filled * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type={trade.result.tradeType} />
+                        <TradeItem key={index} price={parseFloat(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={parseFloat(trade.result.filled).toFixed(2).toString()} time={new Date(trade.timestamp).toLocaleTimeString()} type={trade.result.tradeType} />
                       ))
                     }
                   </div>
@@ -412,7 +425,10 @@ class Trc20 extends Component {
                       value={this.state.buyTokenAmount}
                       margin="normal"
                     />
-                    <Typography variant="body2" className="mb-3">~{(parseFloat(this.state.buyTokenAmount || 0) * parseFloat(this.state.buyTokenPrice || 0)).toFixed(5)} TRX</Typography>
+                    <div className="d-flex justify-content-between">
+                      <Typography variant="body2" className="mb-3">Cost: ~{(parseFloat(this.state.buyTokenAmount || 0) * parseFloat(this.state.buyTokenPrice || 0)).toFixed(5)} TRX</Typography>
+                      <Typography variant="body2" className="mb-3">Balance: {this.state.trxBalance} TRX</Typography>
+                    </div>
 
                     <Button variant="contained" color="secondary" fullWidth className="no-outline" onClick={this.buyOrder}>Buy ReynaToken</Button>
                   </Paper>
@@ -439,7 +455,10 @@ class Trc20 extends Component {
                       value={this.state.sellTokenAmount}
                       margin="normal"
                     />
-                    <Typography variant="body2" className="mb-3">~{(parseFloat(this.state.sellTokenAmount || 0) * parseFloat(this.state.sellTokenPrice || 0)).toFixed(5)} TRX</Typography>
+                    <div className="d-flex justify-content-between">
+                      <Typography variant="body2" className="mb-3">Gain: ~{(parseFloat(this.state.sellTokenAmount || 0) * parseFloat(this.state.sellTokenPrice || 0)).toFixed(5)} TRX</Typography>
+                      <Typography variant="body2" className="mb-3">Balance: {this.state.tokenBalance} BK</Typography>
+                    </div>
 
                     <Button variant="contained" fullWidth className="bg-danger text-light no-outline" onClick={this.sellOrder}>Sell ReynaToken</Button>
                   </Paper>
@@ -469,7 +488,7 @@ class Trc20 extends Component {
                 <div className="my-auto w-100">
                   {
                     this.buyOrders.map((trade, index) => (
-                      <TradeItem key={index} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="buy" />
+                      <TradeItem key={index} handleClick={() => this.handleOrderBookClick("buy", (trade.result.price / 10 ** 5).toFixed(5).toString(), (trade.result.quantity - trade.result.filled).toFixed(2).toString())} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="buy" />
                     ))
                   }
 
@@ -483,7 +502,7 @@ class Trc20 extends Component {
 
                   {
                     this.sellOrders.map((trade, index) => (
-                      <TradeItem key={index} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="sell" />
+                      <TradeItem key={index} handleClick={() => this.handleOrderBookClick("sell", (trade.result.price / 10 ** 5).toFixed(5).toString(), (trade.result.quantity - trade.result.filled).toFixed(2).toString())} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="sell" />
                     ))
                   }
                 </div>
@@ -558,8 +577,7 @@ class Trc20 extends Component {
                 : null}
 
               {this.state.orderTab === 1 ?
-                null
-                /* this.completedTradesFromAddress.length <= 0 ? "No completed orders" :
+                this.completedTradesFromAddress.length <= 0 ? "No completed orders" :
                   <div>
                     <div className="p-2 d-flex justify-content-between text-light">
                       <div style={{ width: 58 }} className="text-left">
@@ -578,18 +596,18 @@ class Trc20 extends Component {
                       this.completedTradesFromAddress.map((trade, index) => (
                         <div className="p-2 d-flex justify-content-between" key={index}>
                           <div className="text-right">
-                            <p className={`${trade.tradeType === "sell" ? "text-danger" : "text-success"} mb-0`}>{(window.tronWeb.toDecimal(trade.price._hex) / 10 ** 5).toFixed(5)}</p>
+                            <p className={`${trade.tradeType === "sell" ? "text-danger" : "text-success"} mb-0`}>{trade.price.toFixed(5)}</p>
                           </div>
                           <div style={{ width: 200, verticalAlign: "middle" }} className="text-right">
-                            <p className="mb-0 text-light">{window.tronWeb.toDecimal(trade.quantity._hex)}</p>
+                            <p className="mb-0 text-light">{trade.quantity}</p>
                           </div>
                           <div style={{ width: 200, verticalAlign: "middle" }} className="text-right">
-                            <p className="mb-0 text-light">{window.tronWeb.toDecimal(trade.filled._hex)}</p>
+                            <p className="mb-0 text-light">{trade.filled}</p>
                           </div>
                         </div>
                       ))
                     }
-                  </div> */
+                  </div>
                 : null
               }
             </Paper>
