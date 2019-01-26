@@ -5,17 +5,19 @@ import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
+//import List from '@material-ui/core/List';
+//import ListItem from '@material-ui/core/ListItem';
+//import ListItemText from '@material-ui/core/ListItemText';
 import TextField from '@material-ui/core/TextField';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
 import ExchangeChart from "./ExchangeChart";
 import { Link } from "react-router-dom";
-import ArrowUpward from '@material-ui/icons/ArrowUpward';
-import ArrowDownward from '@material-ui/icons/ArrowDownward';
+//import ArrowUpward from '@material-ui/icons/ArrowUpward';
+//import ArrowDownward from '@material-ui/icons/ArrowDownward';
 import TradeItem from "./TradeItem";
+import OrderBook from "./OrderBook";
+import TokenList from "./TokenList";
 import Divider from '@material-ui/core/Divider';
 import LinearProgress from '@material-ui/core/LinearProgress';
 import axios from "axios";
@@ -87,7 +89,6 @@ class Trc20 extends Component {
   }
 
   handleInputChange = (event) => {
-    //console.log(/^[0-9]+(\.[0-9]{0,5})?$/.test(event.target.value))
     if (/^[0-9]+(\.[0-9]{0,5})?$/.test(event.target.value) || event.target.value == "") {
       this.setState({
         [event.target.name]: event.target.value,
@@ -96,6 +97,7 @@ class Trc20 extends Component {
   }
 
   updateToken = (tokenID) => {
+    console.log("Updating token");
     //this.setState({ currentToken: tokenID });
     this.fetchTokenData();
   }
@@ -108,17 +110,17 @@ class Trc20 extends Component {
       this.tokenInstance = await window.tronWeb.contract().at(this.state.testTokenAddress);
 
       this.contractInstance["buyOrderEvent"]().watch(function (err, res) {
-        console.log(res);
+        //console.log(res);
         localThis.updateOrderBook();
       });
 
       this.contractInstance["sellOrderEvent"]().watch(function (err, res) {
-        console.log(res);
+        //console.log(res);
         localThis.updateOrderBook();
       });
 
       this.contractInstance["CompleteTrade"]().watch(function (err, res) {
-        console.log(res);
+        //console.log(res);
         localThis.tradeData.unshift(res);
       });
 
@@ -285,7 +287,6 @@ class Trc20 extends Component {
           }
 
           let args = {
-            //callValue: window.tronWeb.toSun(orderCost),
             shouldPollResponse: true
           }
 
@@ -307,7 +308,6 @@ class Trc20 extends Component {
               .catch(function (error) {
                 console.log(error);
               });
-            //console.log(result);
           } catch (err) {
             console.log("Something went wrong", err);
           }
@@ -335,24 +335,8 @@ class Trc20 extends Component {
             <Grid container direction="column">
               <Grid item xs={12} className="mb-4">
                 <Paper className="p-3 color-dark text-light" style={{ height: 503 }}>
-                  <Typography variant="h6" className="mb-2">Tokens</Typography>
-                  <List>
-                    {
-                      this.tokenData.map((token, index) => (
-                        <ListItem
-                          component={Link}
-                          to={"/trc20/" + token.contractAddress}
-                          button
-                          onClick={() => this.updateToken(token.contractAddress)}
-                          className="no-link-style"
-                          selected={this.state.token === token.contractAddress}
-                          key={index}
-                        >
-                          <ListItemText primary={token.abbriviation + "/TRX"} className="text-light" />
-                        </ListItem>
-                      ))
-                    }
-                  </List>
+                <Typography variant="h6" className="mb-2">Tokens</Typography>
+                <TokenList updateToken={this.updateToken} currentToken={this.state.token} tokenData={this.tokenData} />
                 </Paper>
               </Grid>
 
@@ -463,46 +447,7 @@ class Trc20 extends Component {
           </Grid>
 
           <Grid item lg={3} xs={12}>
-            <Paper className="p-3 color-dark">
-              <Typography variant="h6" className="mb-2 text-light">Order book</Typography>
-
-              <div className="p-2 d-flex justify-content-between text-light">
-                <div style={{ width: 58 }} className="text-left">
-                  <p className="mb-0">Price</p>
-                </div>
-                <div style={{ width: 100 }} className="text-right">
-                  <p className="mb-0">Quantity (BK)</p>
-                </div>
-                <div style={{ width: 100 }} className="text-right">
-                  <p className="mb-0">Total (TRX)</p>
-                </div>
-              </div>
-
-              <Divider />
-              <div style={{ height: 708 }} className="d-flex">
-                <div className="my-auto w-100">
-                  {
-                    this.buyOrders.map((trade, index) => (
-                      <TradeItem key={index} handleClick={() => this.handleOrderBookClick("buy", (trade.result.price / 10 ** 5).toFixed(5).toString(), (trade.result.quantity - trade.result.filled).toFixed(2).toString())} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="buy" />
-                    ))
-                  }
-
-                  <div className={"d-flex justify-content-center text-center my-2"}>
-                    <Typography variant="h5" className={this.tradeData[0].result.tradeType == "buy" ? "text-success" : "text-danger"} style={{ marginRight: 5, verticalAlign: "middle" }}>{(this.tradeData[0].result.price / 10 ** 5).toFixed(5)}</Typography>
-                    {this.tradeData[0].result.tradeType == "buy" ?
-                      <ArrowUpward style={{ fontSize: 32, verticalAlign: "middle" }} className="text-success" /> :
-                      <ArrowDownward style={{ fontSize: 32, verticalAlign: "middle" }} className="text-danger" />
-                    }
-                  </div>
-
-                  {
-                    this.sellOrders.map((trade, index) => (
-                      <TradeItem key={index} handleClick={() => this.handleOrderBookClick("sell", (trade.result.price / 10 ** 5).toFixed(5).toString(), (trade.result.quantity - trade.result.filled).toFixed(2).toString())} hoverable price={(trade.result.price / 10 ** 5).toFixed(5).toString()} amount={(trade.result.quantity - trade.result.filled).toFixed(2).toString()} total={(trade.result.quantity * trade.result.price / 10 ** 5).toFixed(2) + " TRX"} type="sell" />
-                    ))
-                  }
-                </div>
-              </div>
-            </Paper>
+            <OrderBook buyOrders={this.buyOrders} sellOrders={this.sellOrders} handleOrderBookClick={this.handleOrderBookClick} lastCompletedTrade={this.tradeData[0]} />
           </Grid>
 
           {/*  <Grid item lg={4} xs={12}>
