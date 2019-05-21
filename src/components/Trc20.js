@@ -5,16 +5,10 @@ import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
 import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
-//import List from '@material-ui/core/List';
-//import ListItem from '@material-ui/core/ListItem';
-//import ListItemText from '@material-ui/core/ListItemText';
 import TextField from '@material-ui/core/TextField';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
 import ExchangeChart from "./ExchangeChart";
-import { Link } from "react-router-dom";
-//import ArrowUpward from '@material-ui/icons/ArrowUpward';
-//import ArrowDownward from '@material-ui/icons/ArrowDownward';
 import TradeItem from "./TradeItem";
 import OrderBook from "./OrderBook";
 import TokenList from "./TokenList";
@@ -110,26 +104,21 @@ class Trc20 extends Component {
       this.tokenInstance = await window.tronWeb.contract().at(this.state.testTokenAddress);
 
       this.contractInstance["buyOrderEvent"]().watch(function (err, res) {
-        //console.log(res);
         localThis.updateOrderBook();
       });
 
       this.contractInstance["sellOrderEvent"]().watch(function (err, res) {
-        //console.log(res);
         localThis.updateOrderBook();
       });
 
       this.contractInstance["CompleteTrade"]().watch(function (err, res) {
-        //console.log(res);
         localThis.tradeData.unshift(res);
       });
 
       let completedTrades = await window.tronWeb.getEventResult(this.state.contractAddress, 0, "CompleteTrade", null, 20, 1); //collect 20 last completed trades
-      //console.log(completedTrades);
 
       if (completedTrades.length > 0) {
         this.tradeData = completedTrades;
-        //console.log(this.tradeData);
       }
 
       this.setState({ buyTokenPrice: (this.tradeData[0].result.price / 10 ** 5).toString(), sellTokenPrice: (this.tradeData[0].result.price / 10 ** 5).toString() });
@@ -148,12 +137,11 @@ class Trc20 extends Component {
       try {
         let orderResult = await this.contractInstance.buyOrders(order.result.tokenAddress, order.result.price, order.result.id).call();
         order.result.filled = window.tronWeb.toDecimal(orderResult.filled._hex);
-        //console.log(order.result, orderResult.tradeHash);
         if (order.result.tradeHash == orderResult.tradeHash) {
           tempBuyOrders.push(order);
         }
       } catch (err) {
-        //console.log(err);
+        //if (err) throw err;
       }
     }
 
@@ -170,7 +158,7 @@ class Trc20 extends Component {
           tempSellOrders.push(order);
         }
       } catch (err) {
-        //console.log(err);
+        //if (err) throw err;
       }
     }
 
@@ -182,34 +170,27 @@ class Trc20 extends Component {
       .then((response) => {
         return response.json();
       })
-      .then((data) => {
-        data.map(async (item) => {
-          //console.log(item);
+      .then(async (data) => {
+        await Promise.all(data.map(async (item) => {
           try {
             let result = await this.contractInstance[item.tradeType + "Orders"](item.tokenAddress, parseInt((item.price * 10 ** 5).toFixed(0)), item.id).call();
             item.quantity = window.tronWeb.toDecimal(result.quantity._hex);
             item.filled = window.tronWeb.toDecimal(result.filled._hex);
 
-            console.log("exists");
             if (result.tradeHash == item.tradeHash) tempTradesFromAddress.unshift(item);
           } catch (err) {
-            console.log("trade from address is completed");
             tempCompletedTradesFromAddress.unshift(item);
           }
-
-          this.forceUpdate();
-        });
+        })).then(() => this.forceUpdate());
       }).catch(err => console.log(err));
 
     this.tradesFromAddress = tempTradesFromAddress;
     this.completedTradesFromAddress = tempCompletedTradesFromAddress;
-    //console.log("Completed trades from address", this.completedTradesFromAddress);
 
     let tokenBalance = await this.tokenInstance.balanceOf(window.tronWeb.defaultAddress.base58).call();
     let trxBalance = await window.tronWeb.trx.getBalance(window.tronWeb.defaultAddress.base58);
 
     this.setState({ tokenBalance: window.tronWeb.toDecimal(tokenBalance._hex), trxBalance: parseInt(window.tronWeb.fromSun(trxBalance)) });
-    //this.forceUpdate();
   }
 
   cancelOrder = async (type, id) => {
@@ -221,7 +202,7 @@ class Trc20 extends Component {
       console.log(response);
     } catch (err) {
       console.log(err);
-      return false;
+      //return false;
     }
 
     this.updateOrderBook();
